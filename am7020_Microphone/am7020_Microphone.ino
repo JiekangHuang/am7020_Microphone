@@ -31,6 +31,8 @@ void setup()
     pinMode(MIC_PIN, INPUT);
     // AM7020 NBIOT 連線基地台
     nbConnect();
+    // 設定 MQTT KeepAlive 為270秒
+    mqttClient.setKeepAlive(270);
 }
 
 void loop()
@@ -71,7 +73,7 @@ void mqttConnect(void)
     SerialMon.print(F("..."));
 
     // Connect to MQTT Broker
-    while (!mqttClient.connect("AM7020_MQTTID_20210119", MQTT_USERNAME, MQTT_PASSWORD)) {
+    while (!mqttClient.connect("AM7020_MQTTID_MIC_20210119", MQTT_USERNAME, MQTT_PASSWORD)) {
         SerialMon.println(F(" fail"));
     }
     SerialMon.println(F(" success"));
