@@ -8,7 +8,7 @@
 /* uncomment to dump all AT commands */
 // #define DEBUG_DUMP_AT_COMMAND
 
-#define UPLOAD_INTERVAL 60000
+#define UPLOAD_INTERVAL (4.5 * 60000)
 
 #define SerialMon Serial
 #define MONITOR_BAUDRATE 115200
