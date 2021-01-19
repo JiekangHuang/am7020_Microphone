@@ -75,8 +75,6 @@ void mqttConnect(void)
         SerialMon.println(F(" fail"));
     }
     SerialMon.println(F(" success"));
-    mqttClient.publish(MQTT_TOPIC, "00000");
-    mqttClient.subscribe(MQTT_TOPIC);
 }
 
 /**
