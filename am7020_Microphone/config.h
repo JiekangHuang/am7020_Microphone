@@ -66,6 +66,8 @@ SoftwareSerial SoftSerial(8, 9);     // RX:8 TX:9
 #define MQTT_PORT 1883
 #define MQTT_USERNAME "<YOUR USERNAME>"
 #define MQTT_PASSWORD "<YOUR AIO KEY>"
-#define MQTT_TOPIC MQTT_USERNAME "/feeds/mic"
+#define MQTT_TOPIC_MIC MQTT_USERNAME "/feeds/mic"
+#define MQTT_TOPIC_DB_COLOR MQTT_USERNAME "/feeds/db-color"
+#define MQTT_TOPIC_RULE_COLOR MQTT_USERNAME "/feeds/rule-color"
 
 #endif /* _CONFIG_H */
