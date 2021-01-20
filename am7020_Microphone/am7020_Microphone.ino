@@ -23,6 +23,8 @@ PubSubClient  mqttClient(MQTT_BROKER, MQTT_PORT, tcpClient);
 int   year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
 float timezone = 0.0;
 
+String pre_dB_color = "", pre_rule_color = "", dB_color = "", rule_color = "";
+
 // 噪音標準 第三類 規則
 #define RULE1(h, dB) (h >= 7 && h < 18 && dB > 65)
 #define RULE2(h, dB) (h >= 18 && h < 23 && dB > 60)
@@ -74,16 +76,24 @@ void loop()
             /* dB color */
             int h = ((hour + (int)timezone) % 24);
             if (RULE1(h, dB) || RULE2(h, dB) || RULE3(h, dB)) {
-                mqttClient.publish(MQTT_TOPIC_DB_COLOR, "#FF0000");
+                dB_color = "#FF0000";
             } else {
-                mqttClient.publish(MQTT_TOPIC_DB_COLOR, "#008000");
+                dB_color = "#008000";
+            }
+            if (!pre_dB_color.equals(dB_color)) {
+                pre_dB_color = dB_color;
+                mqttClient.publish(MQTT_TOPIC_DB_COLOR, dB_color.c_str());
             }
 
             /* rule color */
             if (RULE4(calcWeek(year, month, day), h)) {
-                mqttClient.publish(MQTT_TOPIC_DB_COLOR, "#FF0000");
+                rule_color = "#FF0000";
             } else {
-                mqttClient.publish(MQTT_TOPIC_RULE_COLOR, "#008000");
+                rule_color = "#008000";
+            }
+            if (!pre_rule_color.equals(rule_color)) {
+                pre_rule_color = rule_color;
+                mqttClient.publish(MQTT_TOPIC_RULE_COLOR, rule_color.c_str());
             }
         } else {
             SerialMon.println("get time error !");
