@@ -3,6 +3,8 @@
 #include <PubSubClient.h>
 #include <TinyGsmClient.h>
 
+#define DEBUG false
+
 #ifdef DEBUG_DUMP_AT_COMMAND
 #include <StreamDebugger.h>
 StreamDebugger debugger(SerialAT, SerialMon);
@@ -15,15 +17,24 @@ TinyGsm modem(SerialAT, AM7020_RESET);
 // 在 modem 架構上建立 Tcp Client
 TinyGsmClient tcpClient(modem);
 // 在 Tcp Client 架構上建立 MQTT Client
-PubSubClient  mqttClient(MQTT_BROKER, MQTT_PORT, tcpClient);
+PubSubClient mqttClient(MQTT_BROKER, MQTT_PORT, tcpClient);
 
 // 定義麥克風輸入腳位
 #define MIC_PIN A0
+#define INTERCEPT 200.9
+#define SLOPE 10.711
 
 int   year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
 float timezone = 0.0;
+typedef enum
+{
+    LIGHT_RED,
+    LIGHT_GREEN,
+} LIGHT_E;
 
-String pre_dB_color = "", pre_rule_color = "", dB_color = "", rule_color = "";
+LIGHT_E pre_dB_light = LIGHT_RED, pre_rule_light = LIGHT_RED, dB_light = LIGHT_RED, rule_light = LIGHT_RED;
+
+int dB_max = 0;
 
 // 噪音標準 第三類 規則
 #define RULE1(h, dB) (h >= 7 && h < 18 && dB > 65)
@@ -42,15 +53,27 @@ void setup()
     SerialAT.begin(AM7020_BAUDRATE);
 
     pinMode(MIC_PIN, INPUT);
+#if DEBUG
+#else
     // AM7020 NBIOT 連線基地台
     nbConnect();
     // 設定 MQTT KeepAlive 為270秒
     mqttClient.setKeepAlive(270);
+#endif
 }
 
 void loop()
 {
-    static unsigned long timer = 0;
+#if DEBUG
+    int adc = analogRead(MIC_PIN);
+    SerialMon.print(F("adc="));
+    SerialMon.print(adc);
+    // 線性回歸
+    float dB = (adc + INTERCEPT) / SLOPE;
+    SerialMon.print(F(",dB="));
+    SerialMon.println((int)dB);
+#else
+    static unsigned long timer = 0, timer1 = 0;
     // 檢查 MQTT Client 連線狀態
     if (!mqttClient.connected()) {
         // 檢查 NBIOT 連線狀態
@@ -61,46 +84,51 @@ void loop()
         mqttConnect();
     }
 
-    if (millis() >= timer) {
-        timer     = millis() + UPLOAD_INTERVAL;
-        /* dB data */
+    if (millis() > timer1) {
+        timer1 = millis() + 100;
         // 讀取麥克風原始類比數據
-        int   adc = analogRead(MIC_PIN);
+        int adc = analogRead(MIC_PIN);
         // 線性回歸
-        float dB  = (adc + 291.269) / 11.550;
+        float dB = (adc + INTERCEPT) / SLOPE;
+        if (dB > dB_max) {
+            dB_max = (int)dB;
+        }
         SerialMon.print(F("dB="));
-        SerialMon.println((int)dB);
-        mqttClient.publish(MQTT_TOPIC_MIC, String((int)dB).c_str());
+        SerialMon.print(dB);
+        SerialMon.print(F(",dB_max="));
+        SerialMon.println(dB_max);
+    }
+
+    if (millis() >= timer) {
+        timer = millis() + UPLOAD_INTERVAL;
+        /* dB data */
+        SerialMon.print(F("dB_max="));
+        SerialMon.println(dB_max);
+        mqttClient.publish(MQTT_TOPIC_MIC, String(dB_max).c_str());
 
         if (modem.getNetworkTime(&year, &month, &day, &hour, &minute, &second, &timezone)) {
-            /* dB color */
-            int h = ((hour + (int)timezone) % 24);
-            if (RULE1(h, dB) || RULE2(h, dB) || RULE3(h, dB)) {
-                dB_color = "#FF0000";
-            } else {
-                dB_color = "#008000";
-            }
-            if (!pre_dB_color.equals(dB_color)) {
-                pre_dB_color = dB_color;
-                mqttClient.publish(MQTT_TOPIC_DB_COLOR, dB_color.c_str());
+            /* dB light */
+            int h    = ((hour + (int)timezone) % 24);
+            dB_light = (RULE1(h, dB_max) || RULE2(h, dB_max) || RULE3(h, dB_max)) ? LIGHT_RED : LIGHT_GREEN;
+            if (pre_dB_light != dB_light) {
+                pre_dB_light = dB_light;
+                mqttClient.publish(MQTT_TOPIC_DB_COLOR, String(dB_light).c_str());
             }
 
-            /* rule color */
-            if (RULE4(calcWeek(year, month, day), h)) {
-                rule_color = "#FF0000";
-            } else {
-                rule_color = "#008000";
-            }
-            if (!pre_rule_color.equals(rule_color)) {
-                pre_rule_color = rule_color;
-                mqttClient.publish(MQTT_TOPIC_RULE_COLOR, rule_color.c_str());
+            /* rule light */
+            rule_light = (RULE4(calcWeek(year, month, day), h)) ? LIGHT_RED : LIGHT_GREEN;
+            if (pre_rule_light != rule_light) {
+                pre_rule_light = rule_light;
+                mqttClient.publish(MQTT_TOPIC_RULE_COLOR, String(rule_light).c_str());
             }
         } else {
             SerialMon.println("get time error !");
         }
+        dB_max = 0;
     }
     // mqtt handle
     mqttClient.loop();
+#endif
 }
 
 /**
