@@ -36,9 +36,12 @@ LIGHT_E pre_dB_light = LIGHT_RED, pre_rule_light = LIGHT_RED, dB_light = LIGHT_R
 
 int dB_max = 0;
 
-// 噪音標準 第三類 規則
-#define RULE1(h, dB) (h >= 7 && h < 18 && dB > 65)
-#define RULE2(h, dB) (h >= 18 && h < 23 && dB > 60)
+/* 噪音標準 第三類 規則 */
+// 日間
+#define RULE1(h, dB) (h >= 7 && h < 20 && dB > 65)
+// 晚間
+#define RULE2(h, dB) (h >= 20 && h < 23 && dB > 60)
+// 夜間
 #define RULE3(h, dB) ((h >= 23 || h < 7) && dB > 55)
 // 施工時段 規則
 #define RULE4(w, h) (((w != 0 && w != 6) && (h >= 22 || h < 6)) || (!(w != 0 && w != 6) && ((h >= 18 || h < 8) || (h >= 12 && h < 13))))
